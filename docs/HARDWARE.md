@@ -1,10 +1,10 @@
-# Use the original hardware
+# Hardware integration
 
-This update connects the current backend to the original ESP-NOW gateway contract. The original hardware was tested by the project owner. This integration was checked here with protocol fixtures and the supplied trained model, without physical devices.
+We retain the ESP-NOW gateway protocol and trained hardware model so the same station measurements can feed the monitoring backend. The hardware prototype has been tested previously. The current integration is covered by protocol fixtures and model-equivalence checks; a complete physical-device run of this version remains outstanding.
 
 ## Supported paths
 
-| Original device path | Connection in this version | Measurements and limits |
+| Device path | Backend connection | Measurements and limits |
 | --- | --- | --- |
 | ESP32 ESP-NOW sender → gateway | Existing POST `/api/gateway-data` and GET `/api/get-command/{senderId}` | Voltage, current, air temperature, raw LDR ADC, humidity, thermistor temperature and reported relay state. Original five-class model. |
 | Arduino Nano serial JSON | `serial --protocol nano-json` sends `READ` | Reads `v`, `i`, `t`, `l`; the original Nano does not supply humidity, thermistor temperature or raw ADC. Those stay missing, so six-feature diagnosis returns data quality until the channels are supplied. |
@@ -17,10 +17,10 @@ Station mapping is sender 1 → `roof-east` (Station 1), sender 2 → `roof-west
 
 ## Run on D: with the existing gateway
 
-From WSL:
+The commands below assume the clone is at `/mnt/d/Projects/SolarSense-Portfolio` and its environment is installed. Use your actual project directory if it has a different name. From WSL:
 
 ```bash
-cd /mnt/d/Projects/SolarSense
+cd /mnt/d/Projects/SolarSense-Portfolio
 source .venv/bin/activate
 python -m solarsense setup
 python -m solarsense credentials
@@ -33,7 +33,7 @@ Use the operator key at http://localhost:8000, select the matching station, then
 
 The unchanged gateway has no authentication header, so the command above explicitly allows its private LAN IP. This is intended for the local project network. A gateway that supports headers can instead send `X-Gateway-Key` on both POST and command polling, with the same value in the server's `SOLARSENSE_GATEWAY_KEY` environment variable. Do not put keys into source control.
 
-WSL may not be reachable from another LAN device just because localhost works in Windows. Verify Windows/WSL networking and the firewall for TCP 8000 using your existing hardware-tested arrangement. The backend must see an allowed private peer address. If Windows forwards all clients through one address, an IP allowlist identifies that forwarder, not an individual gateway; use the header-key option to distinguish devices. This update cannot configure your laptop's LAN remotely.
+WSL may not be reachable from another LAN device just because localhost works in Windows. Verify Windows/WSL networking and the firewall for TCP 8000 using your existing hardware-tested arrangement. The backend must see an allowed private peer address. If Windows forwards all clients through one address, an IP allowlist identifies that forwarder, not an individual gateway; use the header-key option to distinguish devices. Confirm reachability from the gateway network before testing telemetry.
 
 ## Relay commands
 
@@ -51,7 +51,7 @@ The gateway polls the original command endpoint and receives `ACTIVATE_RELAY` or
 Keep the server running and select hardware source for the station. In a second activated terminal:
 
 ```bash
-cd /mnt/d/Projects/SolarSense
+cd /mnt/d/Projects/SolarSense-Portfolio
 source .venv/bin/activate
 python -m solarsense serial --port /dev/ttyUSB0 --station roof-east --protocol nano-json
 ```
@@ -62,7 +62,7 @@ Replace the port with the actual device, for example `/dev/ttyACM0` or Windows `
 
 Hardware inference uses the original 100-tree Random Forest, scaler and class order, exported to `src/solarsense/assets/hardware_forest.json.gz`. The asset records hashes of the original files. JSON tree traversal removes runtime dependence on loading an old sklearn pickle. It preserves the raw model's probabilities; smoothing and incident handling are explicit in `hardware.py` and `worker.py`.
 
-The supported hardware classes are normal, open circuit, short circuit, partial shading and dust accumulation (displayed as soiling). The hardware path does not claim inverter diagnosis, synthetic-model SHAP explanations or AC forecasts. Voltage × current is displayed as DC power. LDR ADC is not converted to invented irradiance. Original sensor bounds are retained; measurements outside them produce data quality rather than silently being clipped into a diagnosis.
+The supported hardware classes are normal, open circuit, short circuit, partial shading and dust accumulation (displayed as soiling). The hardware path does not claim inverter diagnosis, synthetic-model SHAP explanations or AC forecasts. Voltage × current is displayed as DC power. LDR ADC remains a brightness reading; it is not converted to irradiance. Original sensor bounds are retained; measurements outside them produce data quality rather than silently being clipped into a diagnosis.
 
 `reports/hardware-model-parity.json` records 1,000 seed-42 input comparisons: identical predicted classes and maximum probability difference 2.22e-16. This checks software equivalence, not accuracy on real faults. `tests/fixtures/hardware_predictions.json` stores 25 reference vectors for regression testing. Recheck with the trusted original archive using:
 
@@ -70,7 +70,7 @@ The supported hardware classes are normal, open circuit, short circuit, partial 
 python tools/check_original_model.py --original ../OriginalSolarSense/backend
 ```
 
-Adjust that path to the original backend directory containing the four `solar_fault_*.joblib` files. The original hardware's field accuracy has not been measured again in this environment.
+Adjust that path to the original backend directory containing the four `solar_fault_*.joblib` files. No new field-accuracy measurement is included in the recorded validation.
 
 ## Weather
 

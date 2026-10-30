@@ -1,8 +1,8 @@
 # Automatic technician alerts
 
-The fault classifier identifies supported patterns. Incident rules decide when a fault starts or recovers, and a delivery worker contacts the technician assigned to that station. An extra LLM is not needed to send a reliable notification. Recommended actions are deterministic rules, not remotely verified repairs.
+We trigger technician alerts from confirmed incident transitions rather than individual sensor readings. The classifier identifies a supported pattern, the incident rules establish a fault or recovery, and a separate worker prepares the message for the station's assigned contact. Recommended actions come from fault-resolution rules; message delivery does not confirm that a repair was completed.
 
-## Demonstrate without an account or hardware
+## Preview alerts locally
 
 Run the demo, sign in with the operator key, select a station and find **Technician alerts**. Enter the technician's name and international phone number (a Nepal number starts with +977), select WhatsApp or SMS, enable automatic alerts, enable **Include simulated incidents**, and save.
 
@@ -12,10 +12,10 @@ Choose an open-circuit preset in the simulator. After the model stabilizes, the 
 
 ## Send real SMS
 
-Use a Twilio account, an SMS-capable sender and a destination supported by that account. Trial accounts may require a verified destination. In the terminal that will run the backend, set values without putting the token into the command history:
+Use a Twilio account, an SMS-capable sender and a destination supported by that account. Trial accounts may require a verified destination. The commands below assume the WSL clone is at `/mnt/d/Projects/SolarSense-Portfolio`; adjust the directory if needed. In the terminal that will run the backend, read credentials interactively to keep the token out of command history:
 
 ```bash
-cd /mnt/d/Projects/SolarSense
+cd /mnt/d/Projects/SolarSense-Portfolio
 source .venv/bin/activate
 read -r -p 'Twilio account SID: ' TWILIO_ACCOUNT_SID
 read -r -s -p 'Twilio auth token: ' TWILIO_AUTH_TOKEN
@@ -65,4 +65,4 @@ Provider documentation: [Twilio WhatsApp notification templates](https://www.twi
 
 The worker persists jobs and claims submissions before contacting Twilio. Connection failures before submission and rate limiting have bounded retries. Ambiguous submission timeouts are not automatically resent. A failed delivery-status poll never triggers another POST. Status checks begin after 30 seconds and back off up to five minutes. Delivery work runs separately from inference so a slow provider does not block sensor processing. Turning off a contact prevents pending submissions but cannot recall messages already accepted by the provider.
 
-Tests exercise both message formats, incident-triggered previews, masking, duplicate suppression, submission versus delivery, status polling and ambiguous timeouts using a mock HTTP provider. No real technician message was sent during implementation; credentials and an actual destination are needed for a live acceptance test.
+Tests exercise both message formats, incident-triggered previews, masking, duplicate suppression, submission versus delivery, status polling and ambiguous timeouts using a mock HTTP provider. Live delivery is not part of the recorded test results. Verify it separately with configured provider credentials and an agreed destination, then check both the application record and provider status.

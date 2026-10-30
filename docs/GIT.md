@@ -1,70 +1,43 @@
-# Clone, commit and push
+# Repository workflow
 
-Clone the project into D: from WSL:
+## Clone on D:
 
 ```bash
+mkdir -p /mnt/d/Projects
 cd /mnt/d/Projects
 git clone https://github.com/Szin7/AI-powered-Solar-Fault-detection-system.git SolarSense-Portfolio
 cd SolarSense-Portfolio
 bash tools/run_wsl.sh
 ```
 
-The launcher installs dependencies, runs checks and starts the local demo. To update an existing clone, commit your local changes first, then run `git pull --ff-only`.
+The WSL launcher installs dependencies, runs the regression suite, prepares models and starts the demo. Use `bash tools/run_wsl.sh --verify-only` to stop after setup and verification.
 
-For an independent repository, extract the source ZIP and create a new history. The following seven commits cover every tracked deliverable in dependency order. Use them only in the source folder without the supplied Git history.
+## Work on a change
 
-```bash
-git init -b main
-git add .gitignore .dockerignore LICENSE pyproject.toml requirements.txt requirements-mlflow.txt src/solarsense/__init__.py src/solarsense/__main__.py src/solarsense/config.py src/solarsense/data.py src/solarsense/features.py scenarios data
-git commit -m "add reproducible solar data generator"
-git add src/solarsense/ml.py src/solarsense/monitoring.py src/solarsense/evaluation.py
-git commit -m "train and compare solar fault models"
-git add src/solarsense/db.py src/solarsense/schemas.py src/solarsense/worker.py src/solarsense/api.py src/solarsense/hardware.py src/solarsense/assets src/solarsense/integrations.py src/solarsense/technicians.py src/solarsense/weather.py src/solarsense/serial_bridge.py
-git commit -m "persist telemetry and add fault resolution rules"
-git add src/solarsense/cli.py src/solarsense/simulator.py src/solarsense/static frontend tools
-git commit -m "add independent simulator and live dashboard"
-git add tests requirements-browser.txt
-git commit -m "test auth recovery replay and model integrity"
-git add Dockerfile compose.yaml deploy .github
-git commit -m "add container deployment and continuous integration"
-git add README.md docs notebooks reports
-git add -A
-git commit -m "document measured results and interview demo"
-```
-
-These commits describe the final delivered snapshot in seven stages; they do not imply seven independently deployable historical releases. If your repository already contains earlier work, use one update commit instead:
+Start from a clean working tree. If `git status --short` shows local work, commit it or deliberately set it aside before updating.
 
 ```bash
 git status --short
-git add -A
+git pull --ff-only
+git switch -c docs/clarify-setup
+```
+
+Choose a branch name that describes the change. Review the diff, stage the intended files and commit with a message that explains the result:
+
+```bash
+git diff --check
+git diff
+git add README.md docs
 git diff --cached --stat
-git commit -m "connect original hardware and technician alerts"
-git status --short
+git commit -m "clarify setup and operating procedures"
+git push -u origin HEAD
 ```
 
-The final status should show no forgotten source files. Runtime credentials, models, local data and dependencies are excluded by `.gitignore`.
+Use a pull request to review changes before merging into `main`. Configure `user.name` and `user.email` locally if Git has no author identity. Keep existing history intact when updating a clone.
 
-Git needs your own author name and email configured before those commits. For new commits, set your usual Git identity locally with `git config user.name` and `git config user.email` using your own values.
+## Verify a clean checkout
 
-With GitHub CLI installed, these commands create a new public repository under your authenticated account and push the existing branch. Use `--private` instead of `--public` if that is your preference. The name must be unused in that account.
-
-```bash
-gh auth login
-gh repo create SolarSense --public --source=. --remote=origin
-git push -u origin main
-```
-
-For an existing empty GitHub repository, use this Bash sequence, pasting its actual clone URL when prompted:
-
-```bash
-read -r -p "GitHub repository clone URL: " solar_repo_url
-git remote add origin "$solar_repo_url"
-git push -u origin main
-```
-
-Never force-push over an existing project without reviewing its history. This new repository intentionally excludes the old archive's credentials. If those credentials were ever published, removing them from this new tree does not revoke them; rotate them in the original service before using that old configuration again.
-
-## Verify from a clean clone
+Use Python 3.12 and run from the repository root:
 
 ```bash
 python3.12 -m venv .venv
@@ -80,4 +53,20 @@ python -m solarsense evaluate
 python -m solarsense demo
 ```
 
-Expect the app at http://127.0.0.1:8000 and a newly generated local operator key. Training metrics are written to `reports/metrics.json`; never paste values from a different experiment without its manifest. Initial installation requires network access and writable disk space. Adjust only the Python launcher/activation command for your OS, an occupied port/origin, and your own GitHub identity/destination. No source-code edit is required for the standard local demo.
+Open http://localhost:8000 and connect with the newly generated operator key. Use `.venv/bin/python -m solarsense credentials` from the repository root if the shell is not activated. Native Windows uses `.venv\Scripts\python.exe` instead.
+
+Frontend changes also require Node.js 24:
+
+```bash
+npm ci --prefix frontend
+npm run typecheck --prefix frontend
+npm run build --prefix frontend
+```
+
+Commit the dashboard source and its rebuilt export in `src/solarsense/static/` together. Run the browser check in [DEMO.md](DEMO.md) for changes to dashboard behaviour.
+
+## Files to keep local
+
+`.gitignore` excludes credentials, generated datasets, trained runtime models, local databases, notification contacts and dependency directories. Inspect staged files before committing, especially after adding configuration or reports. Include only measurements that belong to the recorded model version and dataset hash.
+
+Secrets already exposed outside the project need rotation at the relevant service; removing a file from the latest commit does not revoke its contents. Do not commit `.env`, `var/credentials.json`, provider tokens or real technician contact exports.

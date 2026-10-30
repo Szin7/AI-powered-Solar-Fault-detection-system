@@ -1,12 +1,50 @@
 # SolarSense
 
-SolarSense monitors three solar stations using a simulator or the original ESP-NOW gateway, detects supported fault patterns, records incidents, and shows what the model used to make a prediction. I built it to practise the full path from sensor-like data to ML inference, a working dashboard, and repeatable tests without buying hardware first.
+Solar fault monitoring, diagnosis and incident tracking, with an ESP-NOW hardware interface and a reproducible simulation mode.
 
-**The included dataset and reported benchmark are synthetic.** Hardware mode accepts real measurements through the original ESP-NOW gateway or a serial bridge and uses the original five-class hardware model. The dashboard labels the source. Physical relay commands require explicit server enablement and gateway feedback.
+[![Checks](https://github.com/Szin7/AI-powered-Solar-Fault-detection-system/actions/workflows/ci.yml/badge.svg)](https://github.com/Szin7/AI-powered-Solar-Fault-detection-system/actions/workflows/ci.yml)
 
-## Run it
+A drop in solar output does not always indicate an electrical fault. Shading, dust, changing irradiance, load and faulty sensors can produce similar symptoms. We built SolarSense to bring these measurements together, identify supported fault patterns and keep a record of what happened and how it was handled.
 
-Use Python 3.12 and run these commands from the repository root. A GPU, Node.js, Docker and paid APIs are not required for this path.
+The system follows a reading from acquisition to prediction, incident review and technician notification. The dashboard shows the measurements behind each decision, while the backend continues collecting and processing data independently of the browser. Simulation mode makes the same workflow available without connected panels.
+
+**The published accuracy and forecast results use synthetic data.** Hardware inference uses a separate five-class model and the existing ESP-NOW gateway protocol. Its software equivalence is tested; the synthetic benchmark does not represent field accuracy.
+
+## What the system does
+
+| Area | Implementation |
+| --- | --- |
+| Monitoring | Three stations with voltage, current, temperature, humidity and light readings; additional irradiance and AC measurements in simulation mode |
+| Fault detection | Normal operation, open circuit, short circuit, partial shading and soiling; inverter faults in simulation mode |
+| Decision support | Prediction scores, temporal voting, data-quality checks, anomaly scores and TreeSHAP explanations for the simulation model |
+| Power analysis | Expected healthy AC output and 15-, 30- and 60-minute forecasts for simulated stations |
+| Incident handling | Fault and recovery events, acknowledgement, recommended actions and independent review labels |
+| Technician alerts | Per-station SMS or WhatsApp contacts, local previews and a persistent delivery queue |
+| Recovery | Duplicate handling, late-reading history, bounded acquisition buffers and recovery of accepted work after a backend restart |
+
+The React dashboard includes circular sensor gauges, expandable charts, station selection, freeze controls and CSV export. Station 1 is East roof, Station 2 is West roof, and Station 3 is Lab panel. Freezing a view or closing the browser does not stop acquisition.
+
+## Run locally
+
+Use **Python 3.12**. The standard demo does not require hardware, a GPU, Docker, Node.js or a paid messaging account. Package installation needs internet access; simulation and inference can then run offline. Weather and live messaging are optional online features.
+
+### WSL on D:
+
+From a WSL terminal with `uv` or Python 3.12 available:
+
+```bash
+mkdir -p /mnt/d/Projects
+cd /mnt/d/Projects
+git clone https://github.com/Szin7/AI-powered-Solar-Fault-detection-system.git SolarSense-Portfolio
+cd SolarSense-Portfolio
+bash tools/run_wsl.sh
+```
+
+The launcher creates the environment, installs dependencies, runs tests, prepares the models and starts the demo. It keeps project state on D: and uses notification preview mode. Startup can take longer on a mounted Windows drive. Errors are saved under `var/launch-*.log`.
+
+### Manual installation
+
+From the repository root:
 
 ```bash
 python3.12 -m venv .venv
@@ -18,24 +56,116 @@ python -m pytest -q
 python -m solarsense demo
 ```
 
-On Windows, use `py -3.12 -m venv .venv` and `.venv\Scripts\Activate.ps1` instead of the first two commands. The remaining commands are the same. If PowerShell blocks activation, call `.venv\Scripts\python.exe` directly. Do not change the machine-wide execution policy.
+For native Windows PowerShell, create the environment with `py -3.12 -m venv .venv` and activate it with `.venv\Scripts\Activate.ps1`. If activation is blocked, use `.venv\Scripts\python.exe` in place of `python`.
 
-Open http://127.0.0.1:8000. Paste the operator key printed in the terminal and click Connect. `python -m solarsense credentials` also shows the local keys. Use the viewer key in another browser window to demonstrate read-only access. Ctrl+C stops the server and simulator launched by `demo`. Start/Stop Monitoring on the page only starts or stops that browser subscription; it does not stop the independent simulator. The default interview scenario finishes after about eight minutes, after which stations show stale values. A fresh online simulator run advances each station to a new event day when needed so old readings do not hide the new session; the selected start is recorded in the run spool. Resuming a run keeps its existing timeline. Event time is simulated and may differ from wall time.
+Open **http://localhost:8000**, enter the operator key printed in the terminal and select **Connect**. To display the keys again from an activated environment:
 
-The first setup generates synthetic data, trains the simulation models and promotes a checked release. The original hardware model is included separately. Later calls reuse it. Installation downloads packages; the configured demo then runs offline. The interview scenario runs for eight minutes. Run `demo` again for another session, or use the separate-process commands in [DEMO.md](docs/DEMO.md).
+```bash
+python -m solarsense credentials
+```
 
-For a compressed day and a quickly available forecast:
+The viewer key provides read-only access. Keys are stored locally and excluded from Git. Ctrl+C stops the server and simulator started by `demo`.
+
+The default scenario lasts about eight minutes. After it finishes, the last readings remain visible and eventually become stale. Start/Stop Monitoring controls the browser subscription; it does not start or stop the independent simulator. See the [demo guide](docs/DEMO.md) for longer sessions and replay.
+
+## Try the fault workflow
+
+Select a simulated station and apply a partial-shading or open-circuit preset. The simulator changes the measurements; the model still makes its own prediction. Once the decision stabilizes, inspect the incident, supporting readings and recommended action. Restore normal conditions to observe recovery.
+
+To test notifications, save a contact under **Technician alerts**, enable automatic alerts and select **Include simulated incidents**. In the default preview mode, incident transitions create local message records without contacting anyone. Real SMS or WhatsApp delivery requires explicit provider configuration.
+
+For a compressed day and a forecast demonstration:
 
 ```bash
 python -m solarsense demo --scenario scenarios/day.yaml
 ```
 
-The compressed day advances event time by five minutes every 0.2 seconds. Heartbeats still use wall time. The normal demo advances event time by two seconds every two seconds; its forecast needs about 15 minutes of continuous history, so the default eight-minute interview run shows an explicit forecast warmup message.
+This scenario advances event time by five minutes every 0.2 seconds. The default scenario advances two event seconds every two wall-clock seconds and ends before the roughly 15-minute forecast warmup completes. Forecast horizons and incident replay delays refer to event time; heartbeats use wall time.
 
+## System design
 
-### Original dashboard source
+Acquisition, inference and display have separate responsibilities. The gateway, serial bridge or simulator submits readings to the API. Validated readings are committed before acknowledgement. A worker processes pending rows, stores predictions and incident transitions, and queues notifications. The browser reads this stored state through the API and WebSocket updates.
 
-The source is in `frontend/`. The included export in `src/solarsense/static/` opens at the same http://127.0.0.1:8000 address. No frontend install is needed to run the project. If changing the React components, use Node.js 24 and run these commands from the repository root:
+We use SQLite for local runs and PostgreSQL in Docker Compose. A reading's station, boot ID and sequence identify retries, so replaying a batch does not create duplicate measurements. Late readings remain available in history without replacing newer live values. The backend runs with one inference worker.
+
+The simulation model compares rules, Random Forest and gradient boosting on whole-session splits. Probability calibration and forecast selection use separate validation data. Three agreeing decisions in the last five readings stabilize the incident state. Missing inputs produce a data-quality result rather than a healthy default.
+
+The [architecture guide](docs/ARCHITECTURE.md) covers contracts, authorization, storage and processing in detail.
+
+## Evaluation
+
+We evaluated the simulation model on **12,096 generated readings across 84 sessions**, with **2,592 readings from 18 held-out sessions** in the test partition. Seed 42 controls generation and splitting. Panel parameters, fault timing, sensor gains, cloud conditions and severity vary between sessions; all partitions still come from the same generator family.
+
+| Measurement | Held-out synthetic result |
+| --- | ---: |
+| Classifier accuracy | 97.65% |
+| Macro F1 | 0.9618 |
+| Accepted prediction coverage | 96.95% |
+| Accuracy among accepted predictions | 98.77% |
+| Healthy expected-power MAE | 6.31 W |
+
+Accuracy and macro F1 above include every classifier prediction before abstention. Coverage measures how often the confidence and support checks accept a known class; accuracy among accepted predictions excludes abstentions.
+
+| Classifier | Validation macro F1 | Test macro F1 |
+| --- | ---: | ---: |
+| Rules | 0.9294 | 0.8339 |
+| Random Forest | 0.9357 | 0.9618 |
+| Gradient boosting | 0.9201 | 0.9439 |
+
+We selected Random Forest for serving. Sigmoid calibration increased validation log loss from 0.1107 to 0.4464, so the application retains the uncalibrated forest probabilities. TreeSHAP explains the selected raw class, not the final temporal vote or a physical cause.
+
+The confusion matrix uses actual labels as rows and predicted labels as columns:
+
+| Actual / predicted | Normal | Open circuit | Short circuit | Shading | Soiling | Inverter |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Normal | 1624 | 0 | 0 | 0 | 0 | 0 |
+| Open circuit | 0 | 175 | 0 | 0 | 0 | 0 |
+| Short circuit | 0 | 0 | 174 | 0 | 0 | 0 |
+| Partial shading | 18 | 0 | 0 | 183 | 25 | 0 |
+| Soiling | 18 | 0 | 0 | 0 | 169 | 0 |
+| Inverter fault | 0 | 0 | 0 | 0 | 0 | 206 |
+
+| Forecast horizon | Forest MAE | Persistence MAE | Selected on validation |
+| --- | ---: | ---: | --- |
+| 15 minutes | 11.91 W | 13.28 W | Forest |
+| 30 minutes | 19.22 W | 24.55 W | Forest |
+| 60 minutes | 30.14 W | 43.23 W | Forest |
+
+The incident replay contains 15 fault events, one missed event and three incorrect alert transitions. Median detection delay is 600 event seconds at a five-minute sampling interval. This measures the decision policy on the replay cadence, not API response time.
+
+![Confusion matrix and probability reliability on synthetic test sessions](reports/evaluation.png)
+
+Full results are in [reports/](reports/). The [model card](docs/MODEL_CARD.md) documents features, split sizes, threshold selection, stress cases and limitations.
+
+### Reproduce the results
+
+From an activated environment:
+
+```bash
+python -m solarsense setup
+python -m solarsense evaluate
+python -m pytest -q --junitxml=reports/pytest.xml
+```
+
+`setup` generates the default dataset and trains or reuses a checked release. Evaluation writes `reports/metrics.json`, `reports/test_predictions.csv`, `reports/evaluation.png` and `reports/scenarios.json`. Keep the model version and data hash with any reported result.
+
+For a separate experiment, run `python -m solarsense train --trees 80`. Releases are immutable: repeating identical source, data and settings in the same model directory returns an existing-release error. Training does not change the active serving model; [operations](docs/OPERATIONS.md) describes promotion and rollback.
+
+**Local reproduction record:** add the run date, Python version, model version, accuracy, macro F1, confusion matrix and pytest summary after running the commands above. The tables in this README are the recorded reference run.
+
+## Hardware and notifications
+
+The ESP-NOW gateway supplies voltage, current, air temperature, raw light ADC, humidity, thermistor temperature and relay feedback. Hardware mode uses the original six-feature, five-class Random Forest. A 1,000-input comparison with the original model produced identical classes and a maximum probability difference of 2.22 × 10⁻¹⁶.
+
+Hardware mode does not infer missing AC power or irradiance, and does not provide the simulation model's inverter diagnosis, AC forecasts or SHAP explanations. Serial adapters accept Nano JSON and legacy CSV; incomplete sensor sets remain explicitly marked as missing. Physical relay control is disabled by default and requires manual enablement and gateway feedback.
+
+Technician contacts are configured per station. Fault and recovery transitions produce notification jobs; repeated readings of the same incident do not produce a message each time. Preview mode needs no account. Live delivery uses Twilio, with separate states for submission, confirmed delivery, failure and uncertain outcomes.
+
+See [hardware setup](docs/HARDWARE.md) and [technician alerts](docs/TECHNICIAN_ALERTS.md) for configuration and verification steps.
+
+## Development and deployment
+
+The dashboard source is in `frontend/`; its static export is included in `src/solarsense/static/`. To edit and rebuild it, use Node.js 24:
 
 ```bash
 npm ci --prefix frontend
@@ -43,88 +173,44 @@ npm run typecheck --prefix frontend
 npm run build --prefix frontend
 ```
 
-The build copies the export into the Python package. Restart the backend and hard-refresh the browser after updating it. Scripts are external files; inline styles are allowed for Recharts and Framer Motion, while inline JavaScript stays blocked by CSP.
+The build copies the export into the Python package. Restart the backend and hard-refresh the browser afterward. The operations view is available at `/operations/` and uses the same backend with its own in-memory access key.
 
-Preset controls change simulated conditions. Manual controls pass voltage, current, temperatures, humidity, ADC light, irradiance and AC power through the independent simulator and the same inference path. Fixed manual values can trigger stuck-sensor detection. Manual samples have no asserted ground-truth fault label. CSV downloads contain the selected station's latest 500 stored readings, including missing values and source labels. Hardware and simulator modes are selected per station. Current weather comes from Open-Meteo when online. Technician contacts can receive automatic SMS or WhatsApp alerts through Twilio; preview mode works without an account. See [HARDWARE.md](docs/HARDWARE.md) and [TECHNICIAN_ALERTS.md](docs/TECHNICIAN_ALERTS.md). The original ungrounded efficiency percentage is replaced by irradiance because the simulation does not provide a measured panel area for physical conversion efficiency.
-
-The previous operations dashboard remains at `/operations/`. Both pages use the same backend; each requires its own in-memory access key.
-
-## What works
-
-The simulator runs independently of the dashboard. Telemetry is validated, authenticated, deduplicated and committed before acknowledgement. A single worker produces predictions, temporal decisions, incidents and notification jobs. Missing readings become a data-quality result. Late arrivals stay in history without replacing newer live values. A backend restart recovers accepted, unfinished work.
-
-The ML code compares rules, a Random Forest and gradient boosting using whole-session splits. It also evaluates sigmoid probability calibration, Isolation Forest novelty scores, TreeSHAP explanations, healthy expected AC output, and 15/30/60-minute forecasts. Validation selects the probability method and forecast policy. A three-of-five vote rule stabilizes decisions. Operators can acknowledge incidents, submit independent reviews, inject simulation faults and request explicit virtual relay states.
-
-The dashboard keeps the original dark theme, circular sensor gauges, expandable history charts, station selector and freeze controls. It also shows actual versus expected power, forecasts, explanations, incidents, notification attempts, model results and label review. Station 1 is East roof, Station 2 is West roof, and Station 3 is Lab panel. A frozen display affects only that viewer. The default notification destination is a durable in-app inbox. Per-station technician alerts are also recorded in preview mode; actual SMS/WhatsApp requires explicit live configuration.
-
-## Measured results
-
-These numbers were produced during implementation, not estimated. The dataset has 12,096 rows across 84 sessions. The test partition contains 2,592 rows from 18 held-out sessions. Fault timing, sensor gains, panel parameters, cloud levels and severity vary between sessions. The generator and split manifest use seed 42.
-
-| Measurement | Held-out synthetic result |
-| --- | ---: |
-| Selected classifier accuracy | 97.65% |
-| Selected classifier macro F1 | 0.9618 |
-| Accepted prediction coverage | 96.95% |
-| Accuracy among accepted predictions | 98.77% |
-| Healthy expected-power MAE | 6.31 W |
-
-| Classifier | Validation macro F1 | Test macro F1 |
-| --- | ---: | ---: |
-| rules | 0.9294 | 0.8339 |
-| random forest | 0.9357 | 0.9618 |
-| boosting | 0.9201 | 0.9439 |
-
-The Random Forest provides direct tree explanations and is the served classifier. Sigmoid calibration was tried on a separate calibration split. Its validation log loss was 0.4464, compared with 0.1107 for the original forest. The app therefore serves **uncalibrated forest probabilities**, with that method shown in the interface. Calibration is an evaluated experiment, not an improvement claimed without evidence.
-
-Confusion matrix: rows are actual labels and columns are predictions, in this order: normal, open circuit, short circuit, partial shading, soiling, inverter fault. This includes every test prediction before abstention.
-
-```text
- 1624     0     0     0     0     0
-    0   175     0     0     0     0
-    0     0   174     0     0     0
-   18     0     0   183    25     0
-   18     0     0     0   169     0
-    0     0     0     0     0   206
-```
-
-| Forecast horizon | Forest MAE | Persistence MAE | Selected on validation |
-| --- | ---: | ---: | --- |
-| 15 min | 11.91 W | 13.28 W | forest |
-| 30 min | 19.22 W | 24.55 W | forest |
-| 60 min | 30.14 W | 43.23 W | forest |
-
-The incident replay contains 15 fault events, 1 missed event(s), and 3 incorrect alert transition(s). Median detection delay is 600 **event seconds** at a five-minute sampling interval. This is not live API latency. Complete class metrics, reliability data, session bootstrap intervals, stress results and system timings are in [reports/](reports/) and explained in [MODEL_CARD.md](docs/MODEL_CARD.md).
-
-![Synthetic confusion matrix and reliability plot](reports/evaluation.png)
-
-## Reproduce the numbers
-
-From a clean clone, `setup` creates the measured-size dataset and trains the default model. Then run:
+To run the Compose deployment with PostgreSQL:
 
 ```bash
-python -m solarsense evaluate
-python -m pytest -q --junitxml=reports/pytest.xml
+python deploy/init_compose.py
+docker compose up --build
 ```
 
-For a new experiment, use `python -m solarsense generate` followed by `python -m solarsense train --trees 80`. Training saves an immutable release. Repeating the exact same source/data/settings in the same model directory returns an explicit existing-release error; reuse that release, choose a new experiment, or use a fresh checkout. Training does not replace the serving model. Promotion and rollback commands are in [OPERATIONS.md](docs/OPERATIONS.md).
+Open http://localhost:8080. The [operations guide](docs/OPERATIONS.md) covers access keys, backups, monitoring and model changes.
 
-**My local rerun record — fill this after running on my machine:** not recorded yet. Copy accuracy, macro F1 and the confusion matrix from `reports/metrics.json`, and record the date, Python version and test output here. The measured results above remain the implementation reference.
+The regression suite contains **43 tests**. GitHub Actions checks Python linting and tests, frontend type checking and build, dependency and secret scans, and Compose startup with an application-image scan. All four jobs passed in the [recorded verification run](https://github.com/Szin7/AI-powered-Solar-Fault-detection-system/actions/runs/40995107204). See [verification evidence](docs/ACCEPTANCE.md) for the scope of these checks.
 
-## Tests and deployment
+## Repository layout
 
-`python -m pytest -q` runs the regression suite, including real process termination and restart. Runtime depends on the machine; the mounted D: drive can make process startup substantially slower. The integration update has 43 passing tests. It checks leakage, identity collisions, concurrent retries, authorization, WebSockets, late readings, offline state, commands, notifications, model integrity, backup restoration and simulator buffering.
+| Path | Contents |
+| --- | --- |
+| `src/solarsense/` | API, storage, models, simulator, hardware adapters and notification workers |
+| `frontend/` | React/Next.js dashboard and export scripts |
+| `data/` | Sample schema and synthetic-data notes |
+| `scenarios/` | Repeatable fault and network scenarios |
+| `notebooks/` | Data and experiment exploration |
+| `tests/` | Regression tests, hardware fixtures and browser checks |
+| `reports/` | Measured evaluation and verification outputs |
+| `deploy/` | Container initialization and monitoring configuration |
+| `tools/` | WSL launcher and model-comparison utilities |
+| `docs/` | Architecture, model card, setup and operating procedures |
 
-For Docker with PostgreSQL, first run `python deploy/init_compose.py`, then `docker compose up --build`. Open http://127.0.0.1:8080. This route uses separate API, simulator, frontend and database services. Prometheus/Grafana and MLflow are optional profiles. Docker was not available in the implementation environment, so its runtime and image scans must pass in GitHub Actions or on a Docker host before calling that deployment verified.
+## Limitations and next steps
 
-[ACCEPTANCE.md](docs/ACCEPTANCE.md) maps the original plan to evidence and remaining checks. [GIT.md](docs/GIT.md) contains the seven-commit progression and exact GitHub push commands. [OPERATIONS.md](docs/OPERATIONS.md) covers backup, restore, configuration and model changes.
+The main limitation is the gap between generated data and field measurements. Shading and soiling overlap, mild losses can be missed, and unfamiliar conditions can receive confident known labels. An anomaly score or feature explanation does not establish a physical root cause. Independent labelled field sessions are needed before reporting real-world diagnostic accuracy.
 
-## Limitations
+The hardware prototype has been tested previously, but the current integration's recorded checks use protocol fixtures and model-equivalence tests. A new physical-device run and live SMS/WhatsApp delivery test remain outstanding. The partial Nano sensor set cannot support the complete hardware model without additional channels.
 
-The original hardware was tested by the project owner. This update was verified with gateway fixtures and original-model equivalence checks; I did not rerun physical hardware here or measure independent field-labelled accuracy. The synthetic rules simplify PV behaviour, and train/test data share the same generator family. Shading and soiling overlap; mild losses and unfamiliar conditions can be missed or confidently assigned to a known class. An anomaly score and SHAP explanation do not prove a physical root cause. The AC channel is required for the simulated inverter diagnosis and is absent from the original gateway, so hardware mode does not claim inverter diagnosis.
+The system uses one backend process and three configured stations. It has no automatic retraining, per-visitor isolation, retention scheduler or verified 50-device capacity. PostgreSQL startup is covered by Compose CI; PostgreSQL backup restoration, optional monitoring profiles and public hosting need separate validation. Physical switching remains an operator action, and recommended actions are guidance rather than verified repairs.
 
-The benchmark uses mostly daytime sessions. Nighttime suppression is tested separately; that does not establish full-night forecast accuracy. Confidence thresholds and the small session-bootstrap interval are specific to this synthetic dataset. Reviews are stored independently and never silently used as training truth.
+Our next priorities are collecting labelled field sessions, testing the complete gateway-to-dashboard path on hardware, verifying live technician delivery and measuring performance over longer runs.
 
-This is a single-backend-process student project. It has no multi-tenant session isolation, broker, automatic retraining, physical protection logic or verified 50-device capacity. Raw telemetry is retained until the operator archives or replaces the local state; long-running retention automation is not included. SQLite is the verified local store; PostgreSQL uses the same SQLAlchemy Core schema but awaits the container integration run. Windows and macOS instructions are provided, but the recorded execution was on Linux/Python 3.12.
+## License
 
-The original React/Next.js dashboard has been restored and connected to the current API. Its compiled static export is included, so the Python demo does not need Node.js. SQLite remains the default for local use. Gateway and serial adapters are included; live provider delivery, physical-device retesting and hosted deployment still need the corresponding environment. The MIT licence applies to this repository; third-party packages retain their own licences. See [CONTRIBUTIONS.md](docs/CONTRIBUTIONS.md) for component and dependency details.
+SolarSense is released under the [MIT License](LICENSE). Third-party packages and bundled assets retain their own licences; see [components and dependencies](docs/CONTRIBUTIONS.md).

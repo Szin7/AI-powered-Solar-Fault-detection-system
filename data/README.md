@@ -1,9 +1,25 @@
-All included solar data is synthetic. I do not have a physical panel or a labelled field dataset.
+# Solar data
 
-`python -m solarsense generate` writes `generated/solar.csv` and its SHA-256 manifest. The CSV contains 84 separate sessions with 144 five-minute measurements each. The six labels are normal, open circuit, short circuit, partial shading, soiling and inverter fault. The manifest records the complete session split. Generated files are ignored by Git; the small `sample.csv` is included for inspecting the schema.
+We use a deterministic synthetic dataset to develop and compare the simulation models. All included sample data and the published simulation benchmark come from this generator, not from a labelled field collection. Hardware readings use a separate model and are not part of this benchmark.
 
-The generator uses pvlib's PVWatts DC calculation for available DC power. Delivered power is capped by load. It adds temperature variation, a smooth cloud trajectory, measurement noise and persistent session-level sensor gains. The reported irradiance is a simulated irradiance measurement, not an LDR conversion or live weather feed. `light_adc` is a separate approximate brightness channel and is not a model feature.
+From the repository root:
 
-Voltage/current relationships and fault multipliers are simplified. The AC channel makes simulated inverter faults observable. The model cannot establish real fault causes from this synthetic training distribution. Shading and soiling can overlap, mild losses can be missed, and unseen conditions can receive confident known labels.
+```bash
+python -m solarsense generate
+```
 
-Features exclude truth labels, session IDs, split labels, device identity, scenario IDs, severity controls and future observations. The simulator saves truth in a separate `truth.jsonl`, never in an ingestion payload. Live simulator logs are under ignored `var/runs/`.
+With the default `SOLARSENSE_HOME`, this writes `data/generated/solar.csv` and its SHA-256 manifest. The dataset contains 84 sessions of 144 five-minute measurements each: 12,096 rows in total. Seed 42 controls generation, and the manifest records the session split. Generated files are ignored by Git; [sample.csv](sample.csv) provides a small schema example.
+
+## Generation
+
+The generator uses pvlib's PVWatts DC calculation for available power and caps delivered power by load. Sessions vary panel ratings, sensor gains, cloud trajectories, noise, fault timing and severity. The six labels are normal, open circuit, short circuit, partial shading, soiling and inverter fault.
+
+Irradiance is a simulated measurement. The separate `light_adc` channel approximates brightness and is not a classification feature. The AC channel makes inverter losses observable in simulation. Voltage/current relationships and fault multipliers are simplified, so shading and soiling can overlap and unfamiliar conditions may receive confident known labels.
+
+## Splits and leakage checks
+
+Whole sessions remain within one partition: 42 for training, 12 for calibration, 12 for validation and 18 for testing. This keeps adjacent readings from appearing in both training and test data. All partitions still share the same generator family.
+
+Model features exclude truth labels, session and station identity, split labels, scenario IDs, severity controls and future observations. Forecast targets are shifted within sessions. Tests check feature exclusions and confirm that changing future power does not alter earlier forecast features.
+
+Live simulation saves truth separately in `var/runs/.../truth.jsonl`; it is never included in an ingestion payload. Runtime logs and physical telemetry remain local. See the [model card](../docs/MODEL_CARD.md) for evaluation details and limitations.

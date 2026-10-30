@@ -1,18 +1,20 @@
 # Model card
 
-Release: `127932dc8505`. Dataset SHA-256: `2af42e571af9cbe161de13f8f836ee0ef7949df1ae643b5f6d2f630c9544cab6`. Seed: 42. All results are synthetic.
+This card describes the simulation models and their reference evaluation. Hardware inference uses a separate five-class model, documented in [HARDWARE.md](HARDWARE.md).
 
-The intended use is a local educational demonstration of monitoring and diagnosis. Unsupported uses include electrical protection, autonomous physical switching, estimating certified panel health, and claiming field fault accuracy.
+Reference release: `127932dc8505`. Dataset SHA-256: `2af42e571af9cbe161de13f8f836ee0ef7949df1ae643b5f6d2f630c9544cab6`. Seed: 42. All results on this page use synthetic data.
+
+We use these models to study fault classification, uncertainty and power behaviour within a repeatable monitoring workflow. They are not validated for electrical protection, autonomous physical switching or certified panel-health assessment.
 
 ## Data and splits
 
-The default generator produces 84 sessions of 144 five-minute readings. Each class appears across different panel identities. Fault onset and recovery times vary by session. Panel ratings, load limits, sensor gains, noise, cloud levels and severities vary. The first 42 sessions train the models, 12 calibrate probabilities, 12 select thresholds/policies, and 18 form the fixed test partition. Adjacent readings never cross a split. Test conditions use a wider cloud/severity range. There is no external dataset or hidden physical measurement claim.
+The default generator produces 84 sessions of 144 five-minute readings. Each class appears across different panel identities. Fault onset and recovery times vary by session. Panel ratings, load limits, sensor gains, noise, cloud levels and severities vary. The first 42 sessions train the models, 12 calibrate probabilities, 12 select thresholds/policies, and 18 form the fixed test partition. Adjacent readings never cross a split. Test conditions use a wider cloud/severity range. No external field dataset is included in this evaluation.
 
-The nine classification features are normalized voltage, normalized current, delivered/available power ratio, AC/DC efficiency, irradiance, surface temperature, temperature rise, load ratio and humidity. The metadata/truth exclusions are tested. For expected power, only environmental inputs, rating and load are predictors; simultaneous measured voltage/current are excluded. Forecast features use current/past power, lagged power, rolling past means, current environment, rating, load and time of day. Targets are shifted within a session. A future-value perturbation test proves that forecast features before the perturbation stay unchanged.
+The nine classification features are normalized voltage, normalized current, delivered/available power ratio, AC/DC efficiency, irradiance, surface temperature, temperature rise, load ratio and humidity. The metadata/truth exclusions are tested. For expected power, only environmental inputs, rating and load are predictors; simultaneous measured voltage/current are excluded. Forecast features use current/past power, lagged power, rolling past means, current environment, rating, load and time of day. Targets are shifted within a session. A regression test changes future power values and checks that earlier forecast features stay unchanged.
 
 ## Decisions and experiments
 
-The rule, forest and boosting comparisons are in `reports/metrics.json`. The served forest uses 120 trees, minimum leaf size two, balanced class weights and one CPU thread. A sigmoid calibrator is fitted on its own sessions. It loses to the raw forest on validation log loss, so raw probabilities are served. The unsuccessful calibration result remains in the report. No probability is presented as a proven frequency of real faults.
+The rule, forest and boosting comparisons are in `reports/metrics.json`. The served forest uses 120 trees, minimum leaf size two, balanced class weights and one CPU thread. A sigmoid calibrator is fitted on its own sessions. Calibration increases validation log loss from 0.1107 to 0.4464, so we retain the raw forest probabilities. Both results remain in the report. These scores have not been calibrated against real fault frequencies.
 
 Validation chooses per-class confidence thresholds from 0.50 through 0.95, requiring at least five accepted examples and 95% validation precision when achievable. A conservative fallback threshold is 0.90. The class-support envelope uses training quantiles with fixed margins. The novelty detector is fitted only on healthy training data, with a healthy validation quantile cutoff. None of these choices uses final-test labels.
 

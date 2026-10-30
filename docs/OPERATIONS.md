@@ -1,6 +1,6 @@
 # Operations
 
-Run commands from the repository root. `SOLARSENSE_HOME` can point to another local state directory. The default is the current directory; runtime files live in `var/`, models in `models/`, and generated data in `data/generated/`. Use one backend worker. The supported demo requires no external notification recipient, cloud credential or weather endpoint.
+Run commands from the repository root. `SOLARSENSE_HOME` can point to another local state directory. The default is the current directory; runtime files live in `var/`, models in `models/`, and generated data in `data/generated/`. Use one backend worker. The local demo works without provider credentials. Weather and live messaging are optional online services.
 
 | Setting | Default / meaning |
 | --- | --- |
@@ -11,7 +11,7 @@ Run commands from the repository root. `SOLARSENSE_HOME` can point to another lo
 | NOTIFICATION_URL | Empty: local inbox; optional explicitly configured HTTP sink |
 | MLFLOW_TRACKING_URI | Optional experiment tracking endpoint; defaults to a local SQLite tracking DB when `--track` is used |
 
-The first setup creates random keys in ignored `var/credentials.json`. Device tokens are stored hashed in the database. Operators/viewers use distinct local bearer keys. To rotate a local deployment, stop both processes, archive/delete that credentials file, and rerun setup; existing data remains, and device hashes are replaced. Restart every process so it reads the new keys. Do not publish the previous prototype's credential history. This new repository does not contain that history or the old firmware.
+The first setup creates random keys in ignored `var/credentials.json`. Device tokens are stored hashed in the database. Operators/viewers use distinct local bearer keys. To rotate a local deployment, stop both processes, archive/delete that credentials file, and rerun setup; existing data remains, and device hashes are replaced. Restart every process so it reads the new keys. Keep credentials and device-specific network settings outside source control. Rotate any credentials that have been exposed.
 
 ## Model promotion and rollback
 
@@ -35,7 +35,7 @@ python -m pip install -r requirements-mlflow.txt -c requirements.txt
 python -m solarsense train --trees 64 --track
 ```
 
-The default stores tracking metadata in `reports/mlflow.db`, with artifacts in the local MLflow artifact directory. For the optional Compose tracking service, set `MLFLOW_TRACKING_URI=http://127.0.0.1:5000` in the shell before running the same command. The full container profile remains an unexecuted deployment check in this release.
+The default stores tracking metadata in `reports/mlflow.db`, with artifacts in the local MLflow artifact directory. For the optional Compose tracking service, set `MLFLOW_TRACKING_URI=http://127.0.0.1:5000` in the shell before running the same command. The optional tracking profile has not been included in the recorded container verification.
 
 ## Back up and restore SQLite
 
@@ -61,7 +61,7 @@ Copy the corresponding model volume separately using `docker compose cp api:/app
 docker compose exec -T postgres pg_restore -U solar -d solar --clean --if-exists < backups/solar.dump
 ```
 
-Restore the compatible model directory and verify station/result counts and readiness before starting the simulator. This PostgreSQL procedure is provided for the unverified container route; only SQLite backup/restore was executed here. Never apply an unknown schema version to existing data. Future migrations require a versioned migration function and a tested rollback/restore procedure.
+Restore the compatible model directory and verify station/result counts and readiness before starting the simulator. SQLite backup and restoration are covered by regression tests. PostgreSQL startup is verified in Compose CI, but the PostgreSQL backup/restore procedure still needs a separate restoration test. Never apply an unknown schema version to existing data. Future migrations require a versioned migration function and a tested rollback/restore procedure.
 
 ## Docker and monitoring
 
@@ -81,10 +81,12 @@ Prometheus is at http://127.0.0.1:9090, Grafana at http://127.0.0.1:3000, and op
 
 `docker compose down` stops services and retains volumes. `docker compose down -v` permanently removes demo database/models and should only be used after an intentional backup. Image tags are fixed, but tag contents can still be updated by publishers; pin verified digests before a hosted release.
 
-No hosted deployment has been provisioned. Before one is published, complete the container CI job, use TLS, restrict origins, leave public access read-only, protect/rotate local keys, measure memory/latency on the intended host, and document its actual bill and shutdown procedure. This avoids inventing a hosting claim or cost estimate.
+The standard Compose stack passed the [recorded container CI run](https://github.com/Szin7/AI-powered-Solar-Fault-detection-system/actions/runs/40995107204), including API readiness and the application-image scan. The optional monitoring/tracking profiles and public hosting have not been validated by that run.
+
+For a hosted deployment, configure TLS and exact allowed origins, keep public access read-only, manage key rotation, and measure memory and latency on the intended host. Record the service cost and shutdown procedure with that deployment.
 
 ## Troubleshooting and checks
 
-A model error makes readiness fail; telemetry can still be durably accepted and queued. A database error returns 503 rather than pretending a reading was saved. Inspect server logs and `var/` disk space. Notification jobs retry with bounded exponential backoff and preserve attempt history; after six failures they remain failed for inspection. The default local inbox deduplicates event IDs. An external sink must honour the `Idempotency-Key` header to avoid duplicate delivery after an acknowledgement loss.
+A model error makes readiness fail; telemetry can still be durably accepted and queued. A database error returns 503 without acknowledging the reading. Inspect server logs and `var/` disk space. Local inbox and optional HTTP-sink jobs retry with bounded exponential backoff and preserve attempt history; after six failures they remain failed for inspection. SMS/WhatsApp jobs use separate submission and delivery rules described in [TECHNICIAN_ALERTS.md](TECHNICIAN_ALERTS.md). The default local inbox deduplicates event IDs. An external sink must honour the `Idempotency-Key` header to avoid duplicate delivery after an acknowledgement loss.
 
 Local API clients bypass environment proxy settings. That keeps loopback traffic local; use a reachable direct URL for the supported simulator path. Change `demo --port 8001` if port 8000 is occupied and add the matching origin to `ALLOWED_ORIGINS` before connecting a browser. Do not run a second API worker against the same state. Ensure the filesystem is writable and allow package downloads during first installation.

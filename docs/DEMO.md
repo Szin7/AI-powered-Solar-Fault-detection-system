@@ -1,42 +1,71 @@
-# Five-minute interview demo
+# Demo and replay guide
 
-Start `python -m solarsense demo`. Connect as operator in one window and viewer in another. Explain the persistent SIMULATED DATA badge before quoting any measurements.
+The demo runs three simulated stations through the same storage, inference and incident workflow used by the application. No hardware or messaging account is required. Keep technician delivery in preview mode when demonstrating alerts.
 
-During the first minute, select Station 1 (East roof). Identify the distinction between DC sensors, AC output, expected healthy output and load. Show event time versus receive time, the selected model version, and warming or normal state. Freeze one browser and show that the other continues updating.
+## Start a session
 
-Set partial shading to severity 0.7 and apply it. Wait for the measurements to change. The model may disagree with an injected condition; the controls never directly set its prediction. Explain raw prediction, confidence method, the last-five votes, and the SHAP inputs. Acknowledge the incident if one opens. Restore normal operation and show the recovery event and local notification delivery attempts.
+After installation and setup, run:
 
-Disconnect the telemetry link. In ten wall-clock seconds the station should show stale/offline while retaining its last readings. Restore the link and observe recovery. This fault disconnects telemetry delivery; the separate simulator management poll remains reachable so an operator can restore it. A real API outage also interrupts that management poll. Pending readings are held in the bounded local spool; dropped counts are printed explicitly.
+```bash
+python -m solarsense demo
+```
 
-Request virtual relay OFF, then ON. Show the difference between requested, acknowledged and measured state. These are idempotent state requests, not toggles, and never reach electrical hardware.
+Open http://localhost:8000 and connect with the operator key printed in the terminal. A second browser window can use the viewer key. `python -m solarsense credentials` prints both local keys again from an activated environment.
 
-Finish with the benchmark panel. Explain why the data is synthetic, why shading and soiling overlap, and why calibration was rejected on validation evidence. Show a failed stress case rather than claiming unknown detection is solved.
+The default scenario lasts about eight minutes. Its event clock advances two seconds every two wall-clock seconds. Ctrl+C stops the server and simulator. The dashboard's monitoring button changes only that browser's subscription.
 
-## Forecast and replay demo
+## Walk through the system
 
-Use `python -m solarsense demo --scenario scenarios/day.yaml` for a separate accelerated run. Fifteen event minutes arrive in under a second, allowing the forecast history to warm quickly. Its timestamps, not browser wall time, determine the prediction horizon. The run includes faults, delayed batches, a disconnected link and cloud cover. The event schedule is in the YAML file.
+1. **Inspect a station.** Select East roof. Compare voltage, current, temperatures, irradiance, load and AC output. Check the source label and distinguish event time from receive time. Freeze one browser while leaving another connected; acquisition continues.
+2. **Introduce a fault.** Apply partial shading at severity 0.7. The preset changes measurements, not the predicted label. Inspect the raw class, score, temporal votes and feature contributions. The model can disagree with the injected condition.
+3. **Review the incident.** Acknowledge an incident once it opens. Restore normal conditions and wait for a confirmed recovery. The fault and recovery remain in history.
+4. **Preview an alert.** Save a technician contact with automatic alerts and **Include simulated incidents** enabled. A new incident transition produces a preview record. **Preview message** renders the latest message immediately without sending it.
+5. **Interrupt telemetry.** Disconnect the simulated link. After the heartbeat interval of ten wall-clock seconds, readings become stale/offline. Restore the link and observe buffered delivery and recovery.
+6. **Check a command.** Request virtual relay OFF, then ON. Compare requested, acknowledged and measured states. These simulated commands do not reach physical devices.
 
-For longer sessions, run two terminals:
+The management poll remains reachable during the simulated telemetry-link fault so that the operator can restore it. An actual API outage also interrupts management polling. The simulator holds pending readings in a bounded local spool and reports dropped counts when applicable.
+
+The benchmark panel reports synthetic results. Shading and soiling overlap, calibration did not improve validation log loss, and unfamiliar patterns are not reliably recognized. The stress report includes these failure cases.
+
+## Accelerated forecast run
+
+```bash
+python -m solarsense demo --scenario scenarios/day.yaml
+```
+
+The compressed day advances event time by five minutes every 0.2 seconds, making forecast history available quickly. Forecast horizons follow reading timestamps rather than browser wall time. The scenario includes faults, delayed batches, a disconnected link and cloud variation.
+
+The default eight-minute scenario ends before the roughly 15-minute forecast warmup completes. Use the compressed day or a longer session to exercise forecasting.
+
+## Longer sessions and replay
+
+Run the backend in one activated terminal:
 
 ```bash
 python -m solarsense serve
 ```
 
+Start the simulator in another:
+
 ```bash
 python -m solarsense simulate --scenario scenarios/interview.yaml --steps 10000 --run-dir var/my-session
 ```
 
-Restarting that exact command resumes its saved step and spool. A new directory creates a new boot/run identity. Switching YAML settings while resuming is rejected. Ground truth is in `var/my-session/truth.jsonl`; the inference input is the separate `readings.jsonl`.
+Repeating the same command resumes the saved step and pending spool. A new run directory creates a new boot/run identity. Changing scenario settings during a resume is rejected. Ground truth is stored in `var/my-session/truth.jsonl`, separately from the inference inputs in `readings.jsonl`.
+
+With the backend still running:
 
 ```bash
 python -m solarsense replay var/my-session/readings.jsonl
 ```
 
-Replay twice: the second response should report duplicates, not new accepted readings. Existing identities are preserved. To demonstrate clean event-time history for an earlier recorded day, use a fresh `SOLARSENSE_HOME`; older readings intentionally cannot overwrite a newer live timestamp.
+Replaying the same readings again should report duplicates instead of new accepted rows. Identities are preserved. Use a fresh `SOLARSENSE_HOME` when replaying an earlier day as current data; older timestamps deliberately cannot replace newer live state.
+
+A fresh online simulator can move its start to a later simulated day to avoid overlapping stored history. That start is recorded in the run directory. Resumed runs retain their original timeline.
 
 ## Browser verification
 
-With a running API and simulator, in a third terminal:
+With the API and simulator running, use a third activated terminal:
 
 ```bash
 python -m pip install -r requirements-browser.txt
@@ -44,4 +73,4 @@ python -m playwright install chromium
 python tests/browser_check.py
 ```
 
-Run the browser check while the server and simulator are running. It checks the restored dashboard on desktop and mobile, live WebSocket connection, viewer restrictions, freeze, expanded charts, manual sensor input, relay acknowledgement, missing-current rendering and CSV export. CSP is not bypassed. The check temporarily changes Station 1 conditions, then restores the scheduled scenario.
+The check covers desktop and mobile layout, WebSocket updates, viewer restrictions, freeze, expanded charts, manual inputs, relay acknowledgement, missing-current rendering and CSV export. It runs with the normal content security policy, temporarily changes Station 1 conditions and restores the scheduled scenario afterward.

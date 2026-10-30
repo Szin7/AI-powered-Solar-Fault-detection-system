@@ -1,0 +1,89 @@
+services:
+  postgres:
+    image: postgres:17.11-bookworm
+    environment:
+      POSTGRES_DB: solar
+      POSTGRES_USER: solar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python deploy/init_compose.py first}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U solar -d solar"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  setup:
+    build: .
+    image: solarsense:${APP_VERSION:-local}
+    command: [python, -m, solarsense, setup]
+    environment: &app-env
+      DATABASE_URL: postgresql+psycopg://solar:${POSTGRES_PASSWORD}@postgres:5432/solar
+      PUBLIC_READ: "1"
+      ALLOWED_ORIGINS: http://127.0.0.1:8080,http://localhost:8080
+    volumes: &app-volumes
+      - app-state:/app/var
+      - app-models:/app/models
+      - app-data:/app/data/generated
+      - app-reports:/app/reports
+    depends_on:
+      postgres: {condition: service_healthy}
+  api:
+    image: solarsense:${APP_VERSION:-local}
+    environment: *app-env
+    volumes: *app-volumes
+    depends_on:
+      setup: {condition: service_completed_successfully}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+    restart: unless-stopped
+  simulator:
+    image: solarsense:${APP_VERSION:-local}
+    command: [python, -m, solarsense, simulate, --url, "http://api:8000", --steps, "100000", --run-dir, var/compose-run]
+    environment: *app-env
+    volumes: *app-volumes
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.frontend
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      api: {condition: service_healthy}
+    restart: unless-stopped
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    profiles: [monitoring]
+    command: [--config.file=/etc/prometheus/prometheus.yml]
+    volumes: [./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
+    ports: ["127.0.0.1:9090:9090"]
+    depends_on: [api]
+  grafana:
+    image: grafana/grafana:13.2.5-ubuntu
+    profiles: [monitoring]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?Run python deploy/init_compose.py first}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./deploy/grafana-datasource.yml:/etc/grafana/provisioning/datasources/solar.yml:ro
+      - ./deploy/grafana-provider.yml:/etc/grafana/provisioning/dashboards/solar.yml:ro
+      - ./deploy/grafana-dashboard.json:/var/lib/grafana/dashboards/solar.json:ro
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [prometheus]
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.16.1
+    profiles: [tracking]
+    command: [mlflow, server, --host, 0.0.0.0, --port, "5000", --backend-store-uri, sqlite:////mlflow/mlflow.db, --default-artifact-root, /mlflow/artifacts]
+    volumes: [mlflow-data:/mlflow]
+    ports: ["127.0.0.1:5000:5000"]
+volumes:
+  postgres-data:
+  app-state:
+  app-models:
+  app-data:
+  app-reports:
+  mlflow-data:

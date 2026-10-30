@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 2, 6, 23;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+    135deg,
+    rgb(var(--background-start-rgb)),
+    rgb(var(--background-end-rgb))
+  );
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(251, 191, 36, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 191, 36, 0.5);
+}
+
+/* Glassmorphism card */
+@layer components {
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl;
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:bg-white/10 hover:border-white/20 hover:shadow-solar-500/10;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-solar-400 via-solar-300 to-yellow-200 bg-clip-text text-transparent;
+  }
+
+  .glow-effect {
+    box-shadow: 0 0 40px rgba(251, 191, 36, 0.15);
+  }
+
+  .status-normal {
+    @apply bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-green-500/50;
+  }
+
+  .status-fault {
+    @apply bg-gradient-to-r from-red-500/20 to-rose-500/20 border-red-500/50;
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+}
+
+/* Gauge animation */
+.gauge-fill {
+  transition: stroke-dasharray 0.5s ease-out;
+}
+
+/* Grid background pattern */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+@layer components {
+  .input { @apply p-2 rounded-lg bg-dark-900 border border-white/20 text-white; }
+  .solar-button { @apply px-4 py-2 rounded-xl bg-gradient-to-r from-solar-500 to-amber-500 text-dark-900 font-semibold disabled:opacity-40 disabled:cursor-not-allowed; }
+  .small-button { @apply px-3 py-2 rounded-lg bg-white/5 border border-white/20 text-gray-200 hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed; }
+}
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url('/fonts/inter-latin.woff2') format('woff2'); }
+body { font-family: Inter, Arial, Helvetica, sans-serif; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid #fbbf24; outline-offset: 3px; }
+@media (max-width: 640px) { header { position: relative !important; } .gauge-fill { transition: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }

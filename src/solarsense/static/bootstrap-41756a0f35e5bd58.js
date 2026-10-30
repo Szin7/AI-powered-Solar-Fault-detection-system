@@ -1,0 +1,1 @@
+self.__next_f.push([1,"b:{\"metadata\":[[\"$\",\"title\",\"0\",{\"children\":\"Solar Panel Fault Detection | Solar Monitoring\"}],[\"$\",\"meta\",\"1\",{\"name\":\"description\",\"content\":\"Real-time ML-powered fault detection system for solar panels using Random Forest algorithm\"}]],\"error\":null,\"digest\":\"$undefined\"}\n"])

@@ -1,0 +1,14 @@
+{
+  "workload": "three stations, burst ingestion, no browser viewers",
+  "steps_per_station": 20,
+  "accepted": 60,
+  "processed": 60,
+  "elapsed_wall_seconds": 2.8678997760007405,
+  "completed_readings_per_second": 20.921233197231683,
+  "http_ack_p95_seconds": 0.034584924350156136,
+  "accept_to_result_p95_seconds": 1.6640741944313049,
+  "python": "3.12.14",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "passed": true,
+  "note": "This is a small burst benchmark, not the proposed 50-device capacity claim."
+}

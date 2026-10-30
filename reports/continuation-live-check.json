@@ -1,0 +1,9 @@
+{
+  "ready": true,
+  "online_stations": 3,
+  "dashboard_http": 200,
+  "automatic_fault_alert_preview": true,
+  "messages_sent": 0,
+  "delivery_mode": "preview",
+  "physical_hardware_tested": false
+}

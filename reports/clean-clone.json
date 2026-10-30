@@ -1,0 +1,27 @@
+{
+  "fresh_clone": true,
+  "fresh_venv": true,
+  "python": "3.12.14",
+  "tests_passed": 29,
+  "pytest_seconds": 9.75,
+  "pip_check": "passed",
+  "ruff_check": "passed",
+  "ruff_format": "passed",
+  "dataset_hash_matches": true,
+  "model_version_matches": true,
+  "classification_metrics_match_exactly": true,
+  "forecast_metrics_match_exactly": true,
+  "scenario_report_matches_exactly": true,
+  "model_version": "127932dc8505",
+  "commands": [
+    "python3 -m venv .venv",
+    "python -m pip install -r requirements.txt",
+    "python -m pip install --no-deps -e .",
+    "python -m pip check",
+    "ruff check src tests deploy/init_compose.py",
+    "ruff format --check src tests deploy/init_compose.py",
+    "python -m pytest -q",
+    "python -m solarsense setup",
+    "python -m solarsense evaluate"
+  ]
+}

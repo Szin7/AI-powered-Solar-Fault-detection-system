@@ -1,0 +1,8 @@
+{
+  "reference": "Original user-provided RF/scaler/encoder",
+  "rows": 1000,
+  "seed": 42,
+  "max_probability_error": 2.220446049250313e-16,
+  "identical_predicted_classes": true,
+  "physical_hardware_tested_here": false
+}

@@ -1,0 +1,11 @@
+{
+  "model_version": "64cc4d068fda",
+  "workload": "3 stations at 2-second cadence, two browser viewers for 27 seconds, 40-second simulator run",
+  "accepted_and_processed": 60,
+  "p95_accept_to_result_seconds": 0.1475457191467285,
+  "p95_target_seconds": 1.0,
+  "target_met": true,
+  "acknowledged_commands": 2,
+  "incidents": 1,
+  "physical_hardware": false
+}

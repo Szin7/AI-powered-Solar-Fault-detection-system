@@ -1,0 +1,6 @@
+{
+  "tracking": "local MLflow SQLite run with parameters, metrics and model artifacts",
+  "candidate": "132cd819b489",
+  "promoted_then_rolled_back": true,
+  "restored_active": "64cc4d068fda"
+}

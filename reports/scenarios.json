@@ -1,0 +1,147 @@
+{
+  "model_version": "127932dc8505",
+  "synthetic": true,
+  "test_macro_f1": 0.961840398685769,
+  "incidents": {
+    "fault_events": 15,
+    "missed_events": 1,
+    "false_alerts": 3,
+    "observed_station_days": 9.0,
+    "false_alerts_per_station_day": 0.3333333333333333,
+    "median_detection_delay_event_seconds": 600.0,
+    "median_recovery_delay_event_seconds": 600.0,
+    "sampling_seconds": 300,
+    "per_session": [
+      {
+        "session": "session-066",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-067",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-068",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-069",
+        "false_alerts": 3,
+        "rows": 144
+      },
+      {
+        "session": "session-070",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-071",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-072",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-073",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-074",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-075",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-076",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-077",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-078",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-079",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-080",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-081",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-082",
+        "false_alerts": 0,
+        "rows": 144
+      },
+      {
+        "session": "session-083",
+        "false_alerts": 0,
+        "rows": 144
+      }
+    ]
+  },
+  "stress_decisions": {
+    "normal": {
+      "normal": 20
+    },
+    "partial_shading": {
+      "partial_shading": 10,
+      "normal": 7,
+      "uncertain": 3
+    },
+    "soiling": {
+      "uncertain": 1,
+      "normal": 19
+    },
+    "inverter_fault": {
+      "inverter_fault": 20
+    },
+    "unknown": {
+      "uncertain": 1,
+      "partial_shading": 19
+    },
+    "sensor_offset": {
+      "normal": 20
+    },
+    "missing": {
+      "data_quality": 20
+    },
+    "invalid": {
+      "data_quality": 20
+    },
+    "night": {
+      "inactive": 20
+    },
+    "cloud": {
+      "normal": 20
+    },
+    "low_load": {
+      "normal": 20
+    }
+  },
+  "warning": "Stress outcomes are counts, not a claim of unknown-fault accuracy. Event-clock delays differ from live wall-clock latency."
+}

@@ -1,0 +1,21 @@
+{
+  "browser": "131.0.6778.0",
+  "dashboard": "restored original React dashboard",
+  "desktop": "1440x1000",
+  "mobile": "390x844",
+  "viewer_controls_disabled": true,
+  "freeze_keeps_timestamp": true,
+  "station_switching": true,
+  "expanded_chart": true,
+  "manual_values_reach_simulator": true,
+  "relay_confirmations": true,
+  "csv_download": true,
+  "missing_current_chart": true,
+  "stop_start_monitoring": true,
+  "csp_bypassed": false,
+  "hardware_fixture_ui": true,
+  "technician_contact_and_preview": true,
+  "physical_hardware_tested": false,
+  "js_errors": [],
+  "horizontal_overflow": false
+}

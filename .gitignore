@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.env
+var/
+models/
+data/generated/
+mlruns/
+backups/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+.DS_Store
+mlartifacts/
+reports/mlflow.db
+reports/mlruns/
+# Frontend source builds; the checked-in export runs without Node.
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/*.tsbuildinfo
+
+build/
+hardware_config.h

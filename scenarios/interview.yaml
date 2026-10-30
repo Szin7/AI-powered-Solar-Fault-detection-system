@@ -1,0 +1,19 @@
+schema_version: 1
+seed: 42
+start: "2026-06-01T03:15:00+00:00"
+cadence_seconds: 2
+event_minutes: 0.03333333333333333
+steps: 240
+buffer_limit: 500
+stations:
+  - roof-east
+  - roof-west
+  - lab-panel
+events:
+  - {station: roof-east, start: 15, end: 45, fault: partial_shading, severity: 0.75}
+  - {station: roof-west, start: 55, end: 85, fault: soiling, severity: 0.65}
+  - {station: lab-panel, start: 95, end: 125, fault: inverter_fault, severity: 0.85}
+  - {station: roof-east, start: 135, end: 150, network: disconnect}
+  - {station: roof-west, start: 155, end: 170, network: duplicate}
+  - {station: lab-panel, start: 180, end: 195, fault: sensor_stuck}
+  - {station: roof-east, start: 205, end: 215, fault: sensor_offset}

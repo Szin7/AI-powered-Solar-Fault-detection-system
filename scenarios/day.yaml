@@ -1,0 +1,15 @@
+schema_version: 1
+seed: 73
+start: "2026-06-01T00:15:00+00:00"
+cadence_seconds: 0.2
+event_minutes: 5
+steps: 288
+buffer_limit: 1000
+stations: [roof-east, roof-west, lab-panel]
+events:
+  - {station: roof-east, start: 35, end: 60, fault: open_circuit, severity: 0.9}
+  - {station: roof-west, start: 70, end: 100, fault: partial_shading, severity: 0.6}
+  - {station: lab-panel, start: 110, end: 130, fault: short_circuit, severity: 0.9}
+  - {station: roof-east, start: 50, end: 65, network: delay}
+  - {station: roof-west, start: 140, end: 145, network: disconnect}
+  - {station: lab-panel, start: 150, end: 170, cloud: 0.4}
